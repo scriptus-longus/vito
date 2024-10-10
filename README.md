@@ -1,5 +1,5 @@
 # vito
-vito is a C++ library to program games in the terminal using ncurses.
+vito is a C++ library to program ascii art games.
 
 # Why?
 Because its fun.

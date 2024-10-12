@@ -49,6 +49,7 @@ public:
     return ret;
   }
 
+
   uint32_t getX() {
     return position.y;
   }
@@ -67,6 +68,11 @@ public:
 
   void setY(uint32_t y) {
     position.y = y;  
+  }
+
+  void setSprite(std::string sprite) {
+    this->sprite = sprite;
+    //std::cout << this->getText() << std::endl;
   }
 
   virtual std::string str() {
@@ -124,7 +130,7 @@ public:
 
   void handleObjectEvent(uint32_t x, uint32_t y, Event::KeyEvent event) {
     //void (*event_fun)(Object&);
-    Object object = objects.at(Vector2D(x,y));
+    Object& object = objects.at(Vector2D(x,y));
 
     auto event_fun = object.getEvent(event);
 
@@ -232,16 +238,13 @@ public:
 };
 
 
-void PressedA(Object& object) {
-  std::cout << "You pressed A" << std::endl;
+
+void PressedSpace(Object& object) {
+  object.setSprite("*");
 }
 
-void ReleasedA(Object& object) {
-  std::cout << "You released A" << std::endl;
-}
-
-void Space(Object& object) {
-  std::cout << "pew pew!!!" << std::endl;
+void ReleasedSpace(Object& object) {
+  object.setSprite("i");
 }
 
 int main() {
@@ -255,15 +258,19 @@ int main() {
   scene.addObject(object2);
   scene.addObject(object3);
 
-  void (*event_press_a)(Object& object) = PressedA;
-  void (*event_release_a)(Object& object) = ReleasedA;
-  void (*space)(Object& object) = Space;
+  
+  void (*press_space)(Object& object) = PressedSpace;
+  void (*release_space)(Object& object) = ReleasedSpace;
+
+  object2.defineOnEvent(Event::KeyEvent::PressedSpace, press_space);
+  object2.defineOnEvent(Event::KeyEvent::ReleasedSpace, release_space);
+  
 
   Camera camera(0,0, 40, 80);
 
-  camera.defineOnEvent(Event::KeyEvent::PressedKeyA, event_press_a);
-  camera.defineOnEvent(Event::KeyEvent::ReleasedKeyA, event_release_a);
-  camera.defineOnEvent(Event::KeyEvent::ReleasedSpace, space);
+  //camera.defineOnEvent(Event::KeyEvent::PressedKeyA, event_press_a);
+  //camera.defineOnEvent(Event::KeyEvent::ReleasedKeyA, event_release_a);
+  //camera.defineOnEvent(Event::KeyEvent::ReleasedSpace, space);
 
 
   while (camera.window.isOpen()) {

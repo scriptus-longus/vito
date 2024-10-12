@@ -3,15 +3,16 @@
 #include <string>
 #include <unordered_map>
 #include <sstream>
+#include "event.hpp"
 
-enum Event {
+/*enum Event {
   KeyA,
   KeyB,
   KeyLeft,
   KeyRight,
   KeyDown,
   KeyUp  
-};
+};*/
 
 class Vector2D {
 public:
@@ -27,11 +28,11 @@ public:
 
 class Object {
 private:
-  std::string sprite;
   Vector2D position;
+  std::string sprite;
   sf::Text text;
   sf::Font font;
-  std::unordered_map<Event, void(*)(Object&)> events;
+  std::unordered_map<Event::KeyEvent, void(*)(Object&)> events;
   //std::unordered_map<Event, std::string> events;
 
 public:
@@ -43,11 +44,11 @@ public:
     events = {};
   } 
 
-  void defineOnEvent(Event event, void (*event_fun)(Object&)) {
+  void defineOnEvent(Event::KeyEvent event, void (*event_fun)(Object&)) {
     events.insert({event, event_fun});
   }
 
-  auto getEvent(Event event) {
+  auto getEvent(Event::KeyEvent event) {
     void (*ret)(Object&) = nullptr;
     auto event_it = events.find(event);
 
@@ -131,7 +132,7 @@ public:
     return false;
   } 
 
-  void handleObjectEvent(uint32_t x, uint32_t y, Event event) {
+  void handleObjectEvent(uint32_t x, uint32_t y, Event::KeyEvent event) {
     //void (*event_fun)(Object&);
     Object object = objects.at(Vector2D(x,y));
 
@@ -149,8 +150,6 @@ public:
 
 class Camera : public Object {
 private:
-  //uint32_t X;
-  //uint32_t Y;
   uint32_t rows;
   uint32_t cols;
   uint32_t width;
@@ -185,27 +184,21 @@ public:
 
   void update(Scene& scene) {
     sf::Event sf_event;
-    Event event;
+    Event::KeyEvent event;
 
     while (window.pollEvent(sf_event)) {
       if (sf_event.type == sf::Event::Closed) {
         window.close();
       }
-
-      if (sf_event.type == sf::Event::KeyReleased && sf_event.key.code == sf::Keyboard::A) {
-        event = Event::KeyA;
-      }
-
-      if (sf_event.type == sf::Event::KeyReleased && sf_event.key.code == sf::Keyboard::Right) {
-        event = Event::KeyLeft;
-      }
-      if (sf_event.type == sf::Event::KeyReleased && sf_event.key.code == sf::Keyboard::B) {
-        event = Event::KeyB;
-      }
+      event = Event::convertFromSFML(sf_event);
+    }
+    if (event == Event::KeyEvent::Unknown) {
+      return;
     }
 
-   
+    
     auto event_fun = this->getEvent(event);
+
     if (event_fun != nullptr) {
       event_fun(*this);
     } 
@@ -217,7 +210,6 @@ public:
         }
       }
     }
-
   }
 
   void render(Scene& scene) {
@@ -249,13 +241,18 @@ public:
   }
 };
 
-void PlayerOnLeft(Object& object) {
-  std::cout << object.str() << std::endl;
+/*
+void PressedA(Object& object) {
+  std::cout << "You pressed A" << std::endl;
 }
 
-void CameraOnB(Object& object) {
-  std::cout << object.str() << std::endl;
+void ReleasedA(Object& object) {
+  std::cout << "You released A" << std::endl;
 }
+
+void Space(Object& object) {
+  std::cout << "pew pew!!!" << std::endl;
+}*/
 
 int main() {
   Scene scene; 
@@ -268,50 +265,24 @@ int main() {
   scene.addObject(object2);
   scene.addObject(object3);
 
-  void (*event_fun)(Object& object) = PlayerOnLeft;
-  void (*cam_fun)(Object& object) = CameraOnB;
-  //event = &PlayerOnLeft;
+  void (*event_press_a)(Object& object) = PressedA;
+  void (*event_release_a)(Object& object) = ReleasedA;
+  void (*space)(Object& object) = Space;
 
-  object2.defineOnEvent(Event::KeyA, event_fun);
 
 
   uint32_t x = 0;
   uint32_t y = 0;
 
   Camera camera(0,0, 40, 80);
-  camera.defineOnEvent(Event::KeyB, cam_fun);
-  std::cout << camera.str() << std::endl;  
 
-  //Object object2(10, 0, "World");
+  /*
+  camera.defineOnEvent(Event::KeyEvent::PressedKeyA, event_press_a);
+  camera.defineOnEvent(Event::KeyEvent::ReleasedKeyA, event_release_a);
+  camera.defineOnEvent(Event::KeyEvent::ReleasedSpace, space);*/
+
 
   while (camera.window.isOpen()) {
-    sf::Event event;
-
-    /*while (camera.window.pollEvent(event)) {
-      if (event.type == sf::Event::Closed) {
-        camera.window.close();
-      }
-
-      if (event.type == sf::Event::KeyReleased) {
-        if (event.key.code == sf::Keyboard::Right) {
-          x++;
-          camera.setPosition(x, y); 
-        }
-        if (event.key.code == sf::Keyboard::Left) {
-          x--;
-          camera.setPosition(x, y); 
-        }
-        if (event.key.code == sf::Keyboard::Up) {
-          y--;
-          camera.setPosition(x, y); 
-        } 
-        if (event.key.code == sf::Keyboard::Down) {
-          y++;
-          camera.setPosition(x, y);
-        }
-        std::cout << "(" << x << ", " << y << ")" << std::endl;
-      }
-    }*/
     camera.update(scene);
 
     camera.render(scene);

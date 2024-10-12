@@ -4,9 +4,9 @@
 #include <unordered_map>
 #include <sstream>
 
-
 enum Event {
   KeyA,
+  KeyB,
   KeyLeft,
   KeyRight,
   KeyDown,
@@ -58,19 +58,36 @@ public:
     return ret;
   }
 
-  std::string str() {
-    std::stringstream ss;
-    ss << "Object at: (" << position.x << ", " << position.y << ")";
-    return ss.str();
+  uint32_t getX() {
+    return position.y;
   }
-  
-  std::string getText() {
-    return sprite;
+
+  uint32_t getY() {
+    return position.y;
   }
 
   Vector2D getPosition() {
     return position;
   }
+
+  void setX(uint32_t x) {
+    position.x = x;  
+  }
+
+  void setY(uint32_t y) {
+    position.y = y;  
+  }
+
+  virtual std::string str() {
+    std::stringstream ss;
+    ss << "Object at: (" << position.x << ", " << position.y << ")";
+    return ss.str();
+  }
+  
+  virtual std::string getText() {
+    return sprite;
+  }
+
 };
 
 namespace std {
@@ -90,7 +107,6 @@ public:
   Scene() {
     objects = {};
   }
-
 
   void addObject(Object& object) {
     objects.insert({object.getPosition(), object});
@@ -131,10 +147,10 @@ public:
   }
 };
 
-class Camera {
+class Camera : public Object {
 private:
-  uint32_t X;
-  uint32_t Y;
+  //uint32_t X;
+  //uint32_t Y;
   uint32_t rows;
   uint32_t cols;
   uint32_t width;
@@ -146,7 +162,7 @@ private:
 public:
   sf::RenderWindow window;
 
-  Camera(uint32_t x, uint32_t y, uint32_t rows, uint32_t cols) : X(x), Y(y), rows(rows), cols(cols) {
+  Camera(uint32_t x, uint32_t y, uint32_t rows, uint32_t cols) : Object(x, y, ""), rows(rows), cols(cols) {
     height = rows*20;
     width = cols*10;
 
@@ -163,8 +179,8 @@ public:
   }
 
   void setPosition(uint32_t x, uint32_t y) {
-    X = x;
-    Y = y;
+    this->setX(x);
+    this->setY(y);
   }
 
   void update(Scene& scene) {
@@ -183,12 +199,21 @@ public:
       if (sf_event.type == sf::Event::KeyReleased && sf_event.key.code == sf::Keyboard::Right) {
         event = Event::KeyLeft;
       }
+      if (sf_event.type == sf::Event::KeyReleased && sf_event.key.code == sf::Keyboard::B) {
+        event = Event::KeyB;
+      }
     }
+
+   
+    auto event_fun = this->getEvent(event);
+    if (event_fun != nullptr) {
+      event_fun(*this);
+    } 
 
     for (uint32_t y = 0; y < rows; y++) {
       for (uint32_t x = 0; x < cols; x++) {
-        if (scene.isObjectAt(X + x, Y+y)) {
-          scene.handleObjectEvent(X + x, Y + y, event);
+        if (scene.isObjectAt(this->getX() + x, this->getY() + y)) {
+          scene.handleObjectEvent(this->getX() + x, this->getY() + y, event);
         }
       }
     }
@@ -203,8 +228,8 @@ public:
 
     for (uint32_t y = 0; y < rows; y++) {
       for (uint32_t x = 0; x < cols; x++) {
-        if (scene.isObjectAt(X + x, Y+y)) {
-          str += scene.getCharAt(X + x, Y + y);
+        if (scene.isObjectAt(this->getX() + x, this->getY() + y)) {
+          str += scene.getCharAt(this->getX() + x, this->getY() + y);
         } else {
           str += " ";
         } 
@@ -216,9 +241,19 @@ public:
     window.draw(text);
     window.display();
   } 
+
+  std::string str() override {
+    std::stringstream ss;
+    ss << "Camera at: (" << this->getX() << ", " << this->getY() << ")"; 
+    return ss.str();
+  }
 };
 
 void PlayerOnLeft(Object& object) {
+  std::cout << object.str() << std::endl;
+}
+
+void CameraOnB(Object& object) {
   std::cout << object.str() << std::endl;
 }
 
@@ -234,6 +269,7 @@ int main() {
   scene.addObject(object3);
 
   void (*event_fun)(Object& object) = PlayerOnLeft;
+  void (*cam_fun)(Object& object) = CameraOnB;
   //event = &PlayerOnLeft;
 
   object2.defineOnEvent(Event::KeyA, event_fun);
@@ -243,7 +279,8 @@ int main() {
   uint32_t y = 0;
 
   Camera camera(0,0, 40, 80);
-  
+  camera.defineOnEvent(Event::KeyB, cam_fun);
+  std::cout << camera.str() << std::endl;  
 
   //Object object2(10, 0, "World");
 

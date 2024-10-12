@@ -3,16 +3,8 @@
 #include <string>
 #include <unordered_map>
 #include <sstream>
-#include "event.hpp"
 
-/*enum Event {
-  KeyA,
-  KeyB,
-  KeyLeft,
-  KeyRight,
-  KeyDown,
-  KeyUp  
-};*/
+#include "event.hpp"
 
 class Vector2D {
 public:
@@ -30,8 +22,6 @@ class Object {
 private:
   Vector2D position;
   std::string sprite;
-  sf::Text text;
-  sf::Font font;
   std::unordered_map<Event::KeyEvent, void(*)(Object&)> events;
   //std::unordered_map<Event, std::string> events;
 
@@ -241,7 +231,7 @@ public:
   }
 };
 
-/*
+
 void PressedA(Object& object) {
   std::cout << "You pressed A" << std::endl;
 }
@@ -252,7 +242,7 @@ void ReleasedA(Object& object) {
 
 void Space(Object& object) {
   std::cout << "pew pew!!!" << std::endl;
-}*/
+}
 
 int main() {
   Scene scene; 
@@ -269,17 +259,11 @@ int main() {
   void (*event_release_a)(Object& object) = ReleasedA;
   void (*space)(Object& object) = Space;
 
-
-
-  uint32_t x = 0;
-  uint32_t y = 0;
-
   Camera camera(0,0, 40, 80);
 
-  /*
   camera.defineOnEvent(Event::KeyEvent::PressedKeyA, event_press_a);
   camera.defineOnEvent(Event::KeyEvent::ReleasedKeyA, event_release_a);
-  camera.defineOnEvent(Event::KeyEvent::ReleasedSpace, space);*/
+  camera.defineOnEvent(Event::KeyEvent::ReleasedSpace, space);
 
 
   while (camera.window.isOpen()) {

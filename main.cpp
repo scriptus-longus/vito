@@ -2,7 +2,16 @@
 #include <iostream>
 #include <string>
 #include <unordered_map>
-#include <tuple>
+#include <sstream>
+
+
+enum Event {
+  KeyA,
+  KeyLeft,
+  KeyRight,
+  KeyDown,
+  KeyUp  
+};
 
 class Vector2D {
 public:
@@ -18,20 +27,45 @@ public:
 
 class Object {
 private:
-  std::string str;
+  std::string sprite;
   Vector2D position;
   sf::Text text;
   sf::Font font;
+  std::unordered_map<Event, void(*)(Object&)> events;
+  //std::unordered_map<Event, std::string> events;
 
 public:
-  Object(uint32_t x, uint32_t y, std::string str) : position(Vector2D(x,y)), str(str) {
+  Object(uint32_t x, uint32_t y, std::string str) : position(Vector2D(x,y)), sprite(str) {
+    events = {};
   }
 
-  Object(Vector2D position, std::string str) : position(position), str(str){
+  Object(Vector2D position, std::string str) : position(position), sprite(str){
+    events = {};
   } 
 
+  void defineOnEvent(Event event, void (*event_fun)(Object&)) {
+    events.insert({event, event_fun});
+  }
+
+  auto getEvent(Event event) {
+    void (*ret)(Object&) = nullptr;
+    auto event_it = events.find(event);
+
+    if (event_it == events.end()) {
+      return ret; 
+    }
+    ret = event_it->second;
+    return ret;
+  }
+
+  std::string str() {
+    std::stringstream ss;
+    ss << "Object at: (" << position.x << ", " << position.y << ")";
+    return ss.str();
+  }
+  
   std::string getText() {
-    return str;
+    return sprite;
   }
 
   Vector2D getPosition() {
@@ -50,7 +84,7 @@ namespace std {
 
 class Scene {
 private:
-  std::unordered_map<Vector2D, Object> objects;
+  std::unordered_map<Vector2D, Object&> objects;
  
 public:
   Scene() {
@@ -58,7 +92,7 @@ public:
   }
 
 
-  void addObject(Object object) {
+  void addObject(Object& object) {
     objects.insert({object.getPosition(), object});
   }
   
@@ -70,6 +104,7 @@ public:
     }
     return false;
   }
+
  
   bool isObjectAt(uint32_t x, uint32_t y) {
     auto obj = objects.find(Vector2D(x,y));
@@ -80,17 +115,26 @@ public:
     return false;
   } 
 
+  void handleObjectEvent(uint32_t x, uint32_t y, Event event) {
+    //void (*event_fun)(Object&);
+    Object object = objects.at(Vector2D(x,y));
+
+    auto event_fun = object.getEvent(event);
+
+    if (event_fun != nullptr) {
+      event_fun(object);
+    }
+  }
+
   std::string getCharAt(uint32_t x, uint32_t y) {
     return objects.at(Vector2D(x,y)).getText();
   }
 };
 
-
-
 class Camera {
 private:
-  uint32_t x;
-  uint32_t y;
+  uint32_t X;
+  uint32_t Y;
   uint32_t rows;
   uint32_t cols;
   uint32_t width;
@@ -102,7 +146,7 @@ private:
 public:
   sf::RenderWindow window;
 
-  Camera(uint32_t x, uint32_t y, uint32_t rows, uint32_t cols) : x(x), y(y), rows(rows), cols(cols) {
+  Camera(uint32_t x, uint32_t y, uint32_t rows, uint32_t cols) : X(x), Y(y), rows(rows), cols(cols) {
     height = rows*20;
     width = cols*10;
 
@@ -118,18 +162,49 @@ public:
     text.setFillColor(sf::Color::White);
   }
 
+  void setPosition(uint32_t x, uint32_t y) {
+    X = x;
+    Y = y;
+  }
 
-  void render(Scene scene) {
+  void update(Scene& scene) {
+    sf::Event sf_event;
+    Event event;
+
+    while (window.pollEvent(sf_event)) {
+      if (sf_event.type == sf::Event::Closed) {
+        window.close();
+      }
+
+      if (sf_event.type == sf::Event::KeyReleased && sf_event.key.code == sf::Keyboard::A) {
+        event = Event::KeyA;
+      }
+
+      if (sf_event.type == sf::Event::KeyReleased && sf_event.key.code == sf::Keyboard::Right) {
+        event = Event::KeyLeft;
+      }
+    }
+
+    for (uint32_t y = 0; y < rows; y++) {
+      for (uint32_t x = 0; x < cols; x++) {
+        if (scene.isObjectAt(X + x, Y+y)) {
+          scene.handleObjectEvent(X + x, Y + y, event);
+        }
+      }
+    }
+
+  }
+
+  void render(Scene& scene) {
     window.clear();
     std::string str;
 
     str.reserve(rows*cols + rows);
 
-    std::cout << "hi\n";
     for (uint32_t y = 0; y < rows; y++) {
       for (uint32_t x = 0; x < cols; x++) {
-        if (scene.isObjectAt(x,y)) {
-          str += scene.getCharAt(x,y);
+        if (scene.isObjectAt(X + x, Y+y)) {
+          str += scene.getCharAt(X + x, Y + y);
         } else {
           str += " ";
         } 
@@ -140,33 +215,67 @@ public:
     text.setString(str);
     window.draw(text);
     window.display();
-    std::cout << "quit\n";
   } 
 };
+
+void PlayerOnLeft(Object& object) {
+  std::cout << object.str() << std::endl;
+}
 
 int main() {
   Scene scene; 
  
   Object object1(0, 0, "H");
-  Object object2(1, 0, "i");
-  Object object3(79, 39, "!");
+  Object object2(8, 20, "i");
+  Object object3(20, 7, "!");
   
   scene.addObject(object1);
   scene.addObject(object2);
   scene.addObject(object3);
 
+  void (*event_fun)(Object& object) = PlayerOnLeft;
+  //event = &PlayerOnLeft;
+
+  object2.defineOnEvent(Event::KeyA, event_fun);
+
+
+  uint32_t x = 0;
+  uint32_t y = 0;
+
   Camera camera(0,0, 40, 80);
+  
 
   //Object object2(10, 0, "World");
 
   while (camera.window.isOpen()) {
     sf::Event event;
 
-    while (camera.window.pollEvent(event)) {
+    /*while (camera.window.pollEvent(event)) {
       if (event.type == sf::Event::Closed) {
         camera.window.close();
       }
-    }
+
+      if (event.type == sf::Event::KeyReleased) {
+        if (event.key.code == sf::Keyboard::Right) {
+          x++;
+          camera.setPosition(x, y); 
+        }
+        if (event.key.code == sf::Keyboard::Left) {
+          x--;
+          camera.setPosition(x, y); 
+        }
+        if (event.key.code == sf::Keyboard::Up) {
+          y--;
+          camera.setPosition(x, y); 
+        } 
+        if (event.key.code == sf::Keyboard::Down) {
+          y++;
+          camera.setPosition(x, y);
+        }
+        std::cout << "(" << x << ", " << y << ")" << std::endl;
+      }
+    }*/
+    camera.update(scene);
 
     camera.render(scene);
   }

@@ -5,18 +5,8 @@
 #include <sstream>
 
 #include "event.hpp"
+#include "math.hpp"
 
-class Vector2D {
-public:
-  uint32_t x;
-  uint32_t y;
-  
-  Vector2D (uint32_t x, uint32_t y) : x(x), y(y) {} 
-
-  bool operator==(const Vector2D& other) const {
-    return x == other.x && y == other.y;
-  }
-};
 
 class Object {
 private:
@@ -72,7 +62,6 @@ public:
 
   void setSprite(std::string sprite) {
     this->sprite = sprite;
-    //std::cout << this->getText() << std::endl;
   }
 
   virtual std::string str() {
@@ -86,15 +75,6 @@ public:
   }
 
 };
-
-namespace std {
-  template <>
-  struct hash<Vector2D> {
-    size_t operator()(const Vector2D& key) const {
-      return ((hash<uint32_t>()(key.x) ^ (hash<uint32_t>()(key.y) << 1)) >> 1);
-    }
-  };
-}
 
 class Scene {
 private:

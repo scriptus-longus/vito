@@ -3,6 +3,8 @@
 #include <string>
 #include <unordered_map>
 #include <sstream>
+#include <vector>
+//#include <functional>
 
 #include "event.hpp"
 #include "math.hpp"
@@ -13,9 +15,9 @@ private:
   Vector2D position;
   std::string sprite;
   std::unordered_map<Event::KeyEvent, void(*)(Object&)> events;
-  //std::unordered_map<Event, std::string> events;
 
 public:
+
   Object(uint32_t x, uint32_t y, std::string str) : position(Vector2D(x,y)), sprite(str) {
     events = {};
   }
@@ -41,7 +43,7 @@ public:
 
 
   uint32_t getX() {
-    return position.y;
+    return position.x;
   }
 
   uint32_t getY() {
@@ -78,51 +80,29 @@ public:
 
 class Scene {
 private:
-  std::unordered_map<Vector2D, Object&> objects;
+  std::vector<std::reference_wrapper<Object>> objects;
  
 public:
-  Scene() {
-    objects = {};
-  }
-
-  void addObject(Object& object) {
-    objects.insert({object.getPosition(), object});
-  }
+  Scene() {}
   
-  bool isObjectAt(Vector2D pos) {
-    auto obj = objects.find(pos);
-
-    if (obj != objects.end()) {
-      return true;
-    }
-    return false;
+  
+  void addObject(Object& object) {
+    objects.emplace_back(object);
   }
 
- 
-  bool isObjectAt(uint32_t x, uint32_t y) {
-    auto obj = objects.find(Vector2D(x,y));
+  std::vector<std::reference_wrapper<Object>> getObjects() {
+    return objects;
+  }
 
-    if (obj != objects.end()) {
-      return true;
-    }
-    return false;
-  } 
-
-  void handleObjectEvent(uint32_t x, uint32_t y, Event::KeyEvent event) {
-    //void (*event_fun)(Object&);
-    Object& object = objects.at(Vector2D(x,y));
-
+  void handleObjectEvent(Object& object, Event::KeyEvent event) {
     auto event_fun = object.getEvent(event);
 
     if (event_fun != nullptr) {
       event_fun(object);
     }
   }
-
-  std::string getCharAt(uint32_t x, uint32_t y) {
-    return objects.at(Vector2D(x,y)).getText();
-  }
 };
+
 
 class Camera : public Object {
 private:
@@ -179,33 +159,35 @@ public:
       event_fun(*this);
     } 
 
-    for (uint32_t y = 0; y < rows; y++) {
-      for (uint32_t x = 0; x < cols; x++) {
-        if (scene.isObjectAt(this->getX() + x, this->getY() + y)) {
-          scene.handleObjectEvent(this->getX() + x, this->getY() + y, event);
-        }
+    for (auto object_it: scene.getObjects()) {
+      Object& object = object_it.get();
+
+      if (object.getX() >= this->getX() && object.getX() < this->getX() + rows && 
+          object.getY() >= this->getY() && object.getY() < this->getY() + cols) {
+        scene.handleObjectEvent(object, event);
       }
     }
   }
 
   void render(Scene& scene) {
     window.clear();
-    std::string str;
+    auto row = std::string(cols, ' ') + "\n";
+    std::string displayStr;
 
-    str.reserve(rows*cols + rows);
-
-    for (uint32_t y = 0; y < rows; y++) {
-      for (uint32_t x = 0; x < cols; x++) {
-        if (scene.isObjectAt(this->getX() + x, this->getY() + y)) {
-          str += scene.getCharAt(this->getX() + x, this->getY() + y);
-        } else {
-          str += " ";
-        } 
-      }
-      str += "\n";
+    for (uint32_t i = 0; i < rows; i++) {
+      displayStr += row;
     }
 
-    text.setString(str);
+    for (auto object_it: scene.getObjects()) {
+      Object& object = object_it.get();
+
+      if (object.getX() >= this->getX() && object.getX() < this->getX() + cols && 
+          object.getY() >= this->getY() && object.getY() < this->getY() + rows) {
+        displayStr[object.getY() * cols + object.getY() + object.getX()] = object.getText().c_str()[0];
+      }
+    }
+
+    text.setString(displayStr);
     window.draw(text);
     window.display();
   } 
@@ -221,16 +203,18 @@ public:
 
 void PressedSpace(Object& object) {
   object.setSprite("*");
+  object.setX(0);
 }
 
 void ReleasedSpace(Object& object) {
   object.setSprite("i");
+  object.setX(8);
 }
 
 int main() {
   Scene scene; 
  
-  Object object1(0, 0, "H");
+  Object object1(79, 39, "H");
   Object object2(8, 20, "i");
   Object object3(20, 7, "!");
   
@@ -245,6 +229,7 @@ int main() {
   object2.defineOnEvent(Event::KeyEvent::PressedSpace, press_space);
   object2.defineOnEvent(Event::KeyEvent::ReleasedSpace, release_space);
   
+  //object2.setX(0);
 
   Camera camera(0,0, 40, 80);
 

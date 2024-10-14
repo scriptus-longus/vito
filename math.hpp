@@ -6,12 +6,16 @@
 namespace Math {
 class Vector2D {
 public:
-  int32_t x;
-  int32_t y;
+  float x;
+  float y;
   
-  Vector2D(int32_t, int32_t);
+  Vector2D(float, float);
 
   std::string str();
+
+  int32_t getX() const;
+
+  int32_t getY() const;
 
   bool operator==(const Vector2D& other) { 
     return other.x == x && other.y == y;

@@ -4,6 +4,8 @@
 #include <unordered_map>
 #include <sstream>
 #include <vector>
+#include <chrono>
+//#include <thread>
 
 #include "event.hpp"
 #include "math.hpp"
@@ -20,7 +22,7 @@ private:
 
 public:
 
-  Object(int32_t x, int32_t y, std::string str) : position(Math::Vector2D(x,y)), sprite(str), W(1), H(1) {
+  Object(float x, float y, std::string str) : position(Math::Vector2D(x,y)), sprite(str), W(1), H(1) {
     events = {};
   }
 
@@ -44,10 +46,10 @@ public:
   }
 
   bool isInside(int32_t x, int32_t y, int32_t width, int32_t height) {
-    Math::Vector2D top_left(position.x,     position.y);
-    Math::Vector2D top_right(position.x + W-1, position.y);
-    Math::Vector2D bottom_left(position.x,     position.y + H-1);
-    Math::Vector2D bottom_right(position.x + W-1, position.y + H-1);
+    Math::Vector2D top_left(position.getX(),     position.getY());
+    Math::Vector2D top_right(position.getX() + W-1, position.getY());
+    Math::Vector2D bottom_left(position.getX(),     position.getY() + H-1);
+    Math::Vector2D bottom_right(position.getX() + W-1, position.getY() + H-1);
 
     Math::Vector2D frame_top(x, y);
     Math::Vector2D frame_bottom(x + width, y + height);
@@ -71,22 +73,22 @@ public:
   }
 
   int32_t getX() {
-    return position.x;
+    return position.getX();
   }
 
   int32_t getY() {
-    return position.y;
+    return position.getY();
   }
 
   Math::Vector2D getPosition() {
     return position;
   }
 
-  void setX(int32_t x) {
+  void setX(float x) {
     position.x = x;  
   }
 
-  void setY(int32_t y) {
+  void setY(float y) {
     position.y = y;  
   }
 
@@ -105,7 +107,7 @@ public:
 
   virtual std::string str() {
     std::stringstream ss;
-    ss << "Object at: (" << position.x << ", " << position.y << ")";
+    ss << "Object at: (" << position.getX() << ", " << position.getY() << ")";
     return ss.str();
   }
   
@@ -115,16 +117,59 @@ public:
 
 };
 
+class Entity : public Object {
+private:
+  Math::Vector2D velocity;
+
+public:
+  Entity(float x, float y, std::string sprite) : Object(x, y, sprite), velocity(0,0) {}
+ 
+  void setVelocity(Math::Vector2D velocity) {
+    this->velocity = velocity;
+  }
+  
+  Math::Vector2D getVelocity() {
+    return velocity;
+  }
+ 
+  std::string str() override {
+    std::stringstream ss;
+    ss << "Entity at: (" << this->getX() << ", " << this->getY() << ")";
+    return ss.str();
+  }
+};
+
 class Scene {
 private:
   std::vector<std::reference_wrapper<Object>> objects;
+  std::vector<std::reference_wrapper<Entity>> entities;
  
 public:
   Scene() {}
   
-  
   void addObject(Object& object) {
     objects.emplace_back(object);
+  }
+
+  void addEntity(Entity& entity) {
+    objects.emplace_back(entity);
+    entities.emplace_back(entity);
+  }
+
+  void update(float delta_t) {
+    for (auto entity_it : entities) {
+      Entity& entity = entity_it.get();
+ 
+      auto velocity = entity.getVelocity();
+      double x = entity.getPosition().x;
+      double y = entity.getPosition().y;
+
+      if (!(velocity == Math::Vector2D(0,0))) {
+        entity.setX(x + delta_t * velocity.x); 
+        entity.setY(y + delta_t * velocity.y); 
+      }
+    }
+
   }
 
   std::vector<std::reference_wrapper<Object>> getObjects() {
@@ -138,7 +183,9 @@ public:
       event_fun(object);
     }
   }
+
 };
+
 
 
 class Camera : public Object {
@@ -189,7 +236,7 @@ public:
       return;
     }
 
-    
+    // TODO: add queue 
     auto event_fun = this->getEvent(event);
 
     if (event_fun != nullptr) {
@@ -246,7 +293,7 @@ public:
             }
 
             if (current_char != '\n') {
-              displayStr[rel_position.y * cols + rel_position.y  + rel_position.x] = current_char;
+              displayStr[rel_position.getY() * cols + rel_position.getY()  + rel_position.getX()] = current_char;
               rel_position.x++;
             } else {
               rel_position.y++;
@@ -272,34 +319,47 @@ public:
 
 
 void PressedSpace(Object& object) {
-  object.setSprite("+-+\n|*|\n+-+");
+  //object.setSprite("+-+\n|*|\n+-+");
+  //std::cout << "down" << std::endl;
+  std:: cout << object.str() << std::endl;
+  //object.setVelocity(Math::Vector2D(8,0));
 }
 
 void ReleasedSpace(Object& object) {
-  object.setSprite("+-+\n| |\n+-+");
+  //object.setSprite("+-+\n| |\n+-+");
+  std::cout << "up" << std::endl;
+  //object.setVelocity(Math:Vector2D(0,0));
 }
 
 int main() {
+  //using namespace std::chrono_literals;
+
   Scene scene; 
  
-  Object object1(20, 20, "+-+\n| |\n+-+");
-
-  object1.setWidth(3);
-  object1.setHeight(3);
-
-  scene.addObject(object1);
+  Entity player(0.0, 20.0, "a");
+  player.setVelocity(Math::Vector2D(20.0, 0.0));
+  //player.setWidth(3);
+  //player.setHeight(3);
+  scene.addEntity(player);
 
   
   void (*press_space)(Object& object) = PressedSpace;
   void (*release_space)(Object& object) = ReleasedSpace;
 
-  object1.defineOnEvent(Event::KeyEvent::PressedSpace, press_space);
-  object1.defineOnEvent(Event::KeyEvent::ReleasedSpace, release_space);
+  player.defineOnEvent(Event::KeyEvent::PressedSpace, press_space);
+  player.defineOnEvent(Event::KeyEvent::ReleasedSpace, release_space);
   
 
-  Camera camera(-2,-2, 40, 80);
+  Camera camera(0,0, 40, 80);
 
+  auto start = std::chrono::high_resolution_clock::now();
   while (camera.window.isOpen()) {
+    auto end = std::chrono::high_resolution_clock::now();
+    float delta_t = (std::chrono::duration<float>(end - start)).count();
+    start = end;
+    //std::cout << delta_t << std::endl;
+    scene.update(delta_t);
+
     camera.update(scene);
 
     camera.render(scene);

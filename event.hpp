@@ -1,4 +1,6 @@
 #pragma once
+#include <SFML/Graphics.hpp>
+
 namespace Event {
   enum KeyEvent {
     Unknown,
